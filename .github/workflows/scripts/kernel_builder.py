@@ -532,7 +532,7 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
                     f.write(content)
 
         import datetime
-        current_time = datetime.datetime.utcnow().strftime("%a %b %d %H:%M:%S UTC %Y")
+        current_time = "Thu Jun  4 03:48:35 UTC 2026"  # 固定为原厂内核编译时间，避免 /proc/version 时间戳暴露
         mkcompile_h = self.work_dir / "common/scripts/mkcompile_h"
         if mkcompile_h.exists():
             with open(mkcompile_h, "r") as f:
