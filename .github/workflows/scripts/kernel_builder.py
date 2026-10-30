@@ -429,6 +429,21 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
             f.write("# CONFIG_LOCALVERSION_AUTO is not set\n")
 
         import re as _re
+        # 让 /proc/config.gz 内容过滤掉 KSU/SUSFS，既保证 Android 框架能读到，又不暴露自定义
+        kmk = self.work_dir / "common/kernel/Makefile"
+        if kmk.exists():
+            with open(kmk, "r") as f:
+                _k = f.read()
+            _old = "filechk_cat = cat $<"
+            _new = "filechk_cat = grep -v -E 'CONFIG_KSU|CONFIG_SUSFS|CONFIG_KPM|KernelSU|SUSFS|KPM' $<"
+            if _old in _k and _new not in _k:
+                _k = _k.replace(_old, _new, 1)
+                with open(kmk, "w") as f:
+                    f.write(_k)
+                logger.info("已过滤 /proc/config.gz 中的 KSU/SUSFS 配置项")
+            else:
+                logger.info("kernel/Makefile 过滤规则已存在或未匹配")
+
         makefile = self.work_dir / "common/Makefile"
         if makefile.exists():
             with open(makefile, "r") as f:
