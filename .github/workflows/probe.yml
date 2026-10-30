@@ -7,18 +7,22 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Kernel version of each android15-6.6 quarterly branch
+      - name: Inspect kernel/Makefile config_data rule
         run: |
-          for br in 2026-01 2026-04 2026-07 2026-10 lts; do
-            echo "=== common-android15-6.6-${br} ==="
-            curl -sf "https://android.googlesource.com/kernel/common/+/refs/heads/common-android15-6.6-${br}/Makefile?format=TEXT" \
-              | base64 -d 2>/dev/null | head -5 || echo "  fetch failed"
-            echo ""
-          done
+          echo "=== kernel/Makefile 中 config_data 相关 ==="
+          curl -sf "https://android.googlesource.com/kernel/common/+/refs/heads/android15-6.6-2026-07/kernel/Makefile?format=TEXT" \
+            | base64 -d > /tmp/kernel_mk 2>/dev/null || echo "fetch failed"
+          wc -l /tmp/kernel_mk 2>/dev/null
+          grep -n -A4 -B4 "config_data\|KCONFIG_CONFIG\|filechk" /tmp/kernel_mk 2>/dev/null | head -60
 
-      - name: Highest numeric tags for android15-6.6
+      - name: Check ikconfig Kconfig and configs.c
         run: |
-          git ls-remote --tags https://android.googlesource.com/kernel/common 2>/dev/null \
-            | grep -oE 'android15-6\.6\.[0-9]+_r00$' \
-            | sed 's/android15-6\.6\.//; s/_r00//' \
-            | sort -n | uniq | tail -20
+          echo "=== kernel/configs.c 头部 ==="
+          curl -sf "https://android.googlesource.com/kernel/common/+/refs/heads/android15-6.6-2026-07/kernel/configs.c?format=TEXT" \
+            | base64 -d | head -40
+
+      - name: Android side - who reads /proc/config.gz
+        run: |
+          echo "=== 搜索 AOSP 中读取 kernel config 的代码 ==="
+          for f in system/core/libutils/ProcessCallStack.cpp; do :; done
+          echo "(跳过，重点看内核侧)"
