@@ -212,6 +212,17 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
         common_dir = self.work_dir / "common"
         if not common_dir.exists():
             raise RuntimeError("repo sync 失败，common 目录不存在")
+
+        sub_int = self.config.get_sub_level_int()
+        if sub_int is not None:
+            tag = f"{self.config.android_version}-{self.config.kernel_version}.{sub_int}_r00"
+            logger.info(f"=== 检出指定版本: {tag} ===")
+            self._run_cmd(f"git -C {common_dir} fetch --depth=1 origin {tag}", check=False)
+            r = self._run_cmd(f"git -C {common_dir} checkout FETCH_HEAD", check=False)
+            logger.info(f"checkout rc={getattr(r, 'returncode', 'n/a')}")
+            mk = subprocess.run(f"sed -n '1,5p' {common_dir}/Makefile", shell=True, capture_output=True, text=True)
+            logger.info("Makefile 版本信息:\n" + (mk.stdout or ""))
+
         self._apply_legacy_fixes(remote)
         logger.info("=== 内核源代码同步完成 ===")
 
