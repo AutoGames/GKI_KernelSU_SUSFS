@@ -422,10 +422,23 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
 
         with open(config_file, "a") as f:
             f.write(self.KERNEL_CONFIG_TEMPLATE)
-            if self.config.kernel_version != "6.6":
-                f.write("CONFIG_KSU_SUSFS_SUS_PATH=y\n")
-            else:
-                f.write("CONFIG_KSU_SUSFS_SUS_PATH=n\n")
+            f.write("CONFIG_KSU_SUSFS_SUS_PATH=y\n")
+            f.write("CONFIG_IKCONFIG=n\n")
+            f.write("# CONFIG_IKCONFIG_PROC is not set\n")
+            f.write('CONFIG_LOCALVERSION="-gc44b714366cc-abogki519650608-4k"\n')
+            f.write("# CONFIG_LOCALVERSION_AUTO is not set\n")
+
+        import re as _re
+        makefile = self.work_dir / "common/Makefile"
+        if makefile.exists():
+            with open(makefile, "r") as f:
+                _mk = f.read()
+            _sub = self.config.get_sub_level_int()
+            if _sub:
+                _mk = _re.sub(r"^SUBLEVEL\s*=\s*\d+", "SUBLEVEL = " + str(_sub), _mk, flags=_re.M)
+                with open(makefile, "w") as f:
+                    f.write(_mk)
+                logger.info(f"Makefile SUBLEVEL 已设为 {_sub}")
 
         if self.config.use_zram:
             self._configure_zram()
