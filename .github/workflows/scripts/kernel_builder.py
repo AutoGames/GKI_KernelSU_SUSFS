@@ -422,9 +422,9 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
 
         with open(config_file, "a") as f:
             f.write(self.KERNEL_CONFIG_TEMPLATE)
-            f.write("CONFIG_KSU_SUSFS_SUS_PATH=y\n")
-            f.write("CONFIG_IKCONFIG=n\n")
-            f.write("# CONFIG_IKCONFIG_PROC is not set\n")
+            f.write("CONFIG_KSU_SUSFS_SUS_PATH=n\n")
+            f.write("CONFIG_IKCONFIG=y\n")
+            f.write("CONFIG_IKCONFIG_PROC=y\n")
             f.write('CONFIG_LOCALVERSION="-gc44b714366cc-abogki519650608-4k"\n')
             f.write("# CONFIG_LOCALVERSION_AUTO is not set\n")
 
