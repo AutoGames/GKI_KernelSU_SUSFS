@@ -205,6 +205,32 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
             with open(manifest_path, "w") as f:
                 f.write(content)
 
+        # 锁定 kernel/common 到目标 sub-level 对应的 commit（确定性命中）
+        sub_i = self.config.get_sub_level_int()
+        if sub_i is not None:
+            tagname = f"{self.config.android_version}-{self.config.kernel_version}.{sub_i}_r00"
+            logger.info(f"=== 解析 {tagname} 的 commit ===")
+            q = subprocess.run(
+                f"git ls-remote https://android.googlesource.com/kernel/common refs/tags/{tagname}",
+                shell=True, capture_output=True, text=True).stdout.strip()
+            if not q:
+                raise RuntimeError(f"无法解析 {tagname} 的 commit")
+            commit = q.split()[0]
+            logger.info(f"  commit = {commit}")
+            mf = self.work_dir / ".repo/manifests/default.xml"
+            if mf.exists():
+                with open(mf, "r") as f:
+                    mc = f.read()
+                import re as _re2
+                pat = _re2.compile(r'(<project\s+[^>]*name="kernel/common"[^>]*?revision=")[^"]*(")')
+                mc2, n = pat.subn(lambda m: m.group(1) + commit + m.group(2), mc)
+                if n == 0:
+                    pat2 = _re2.compile(r'(<project\s+[^>]*name="kernel/common"[^>]*?)(/>)')
+                    mc2, n = pat2.subn(lambda m: m.group(1) + f' revision="{commit}"' + m.group(2), mc)
+                with open(mf, "w") as f:
+                    f.write(mc2)
+                logger.info(f"  manifest 已锁定 kernel/common -> {commit} (替换 {n} 处)")
+
         self.env["REMOTE_BRANCH"] = remote
         logger.info("同步内核源代码...")
         self._run_cmd("$REPO --trace sync -c -j$(nproc --all) --no-tags --fail-fast", check=False)
@@ -213,15 +239,15 @@ CONFIG_KSU_SUSFS_OPEN_REDIRECT=y
         if not common_dir.exists():
             raise RuntimeError("repo sync 失败，common 目录不存在")
 
+        # 硬校验：同步后必须是目标 sub-level
         sub_int = self.config.get_sub_level_int()
         if sub_int is not None:
-            tag = f"{self.config.android_version}-{self.config.kernel_version}.{sub_int}_r00"
-            logger.info(f"=== 检出指定版本: {tag} ===")
-            self._run_cmd(f"git -C {common_dir} fetch --depth=1 origin {tag}", check=False)
-            r = self._run_cmd(f"git -C {common_dir} checkout FETCH_HEAD", check=False)
-            logger.info(f"checkout rc={getattr(r, 'returncode', 'n/a')}")
-            mk = subprocess.run(f"sed -n '1,5p' {common_dir}/Makefile", shell=True, capture_output=True, text=True)
-            logger.info("Makefile 版本信息:\n" + (mk.stdout or ""))
+            mk = subprocess.run(f"grep -E '^SUBLEVEL' {common_dir}/Makefile", shell=True, capture_output=True, text=True)
+            logger.info(f"同步后 Makefile: {mk.stdout.strip()}")
+            ver = f"{self.config.kernel_version}.{sub_int}"
+            if f"SUBLEVEL = {sub_int}" not in mk.stdout:
+                raise RuntimeError(f"源码版本不是 {ver}，实际为: {mk.stdout.strip()}")
+            logger.info(f"✅ 源码版本校验通过: {ver}")
 
         self._apply_legacy_fixes(remote)
         logger.info("=== 内核源代码同步完成 ===")
